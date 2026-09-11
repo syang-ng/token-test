@@ -1,0 +1,56 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="theme-color" content="#101411" />
+    <meta name="description" content="Claim 100 GTK on Ethereum Sepolia. Connect your wallet, review your claim, and receive Good Token." />
+    <title>Good Token · Claim your GTK airdrop</title>
+    <link rel="icon" href="./favicon.svg" type="image/svg+xml" />
+    <link rel="stylesheet" href="./style.css" />
+    <script type="module" src="./app.js"></script>
+  </head>
+  <body>
+    <div class="page-shell">
+      <header class="header">
+        <a class="brand" href="./" aria-label="Good Token home"><span class="brand-icon">G<span>↗</span></span><span>good token<span class="brand-period">.</span></span></a>
+        <div class="header-actions"><span class="network-tag">SEPOLIA</span><button class="button button-quiet" id="connect-header">Connect wallet <span aria-hidden="true">↗</span></button></div>
+      </header>
+
+      <main>
+        <section class="hero" aria-labelledby="hero-title">
+          <div class="hero-copy">
+            <p class="eyebrow"><span class="tiny-line"></span> GOOD TOKEN</p>
+            <h1 id="hero-title">A fresh drop.<br /><span>Yours to claim.</span></h1>
+            <p class="hero-description">Connect your wallet. Claim <strong>100 GTK</strong>.</p>
+            <div class="token-facts"><div><span>Network</span><strong>Ethereum Sepolia</strong></div><div><span>Eligibility</span><strong>Once per wallet</strong></div></div>
+          </div>
+
+          <section class="claim-card" aria-labelledby="claim-title">
+            <div class="card-top"><span class="card-label">GTK AIRDROP</span><span class="available-tag">Claim is live</span></div>
+            <h2 id="claim-title">Your airdrop allocation</h2>
+            <div class="allocation"><span id="allocation">100</span><span class="ticker">GTK</span></div>
+            <p class="token-name">Good Token</p>
+            <div class="claim-divider"></div>
+            <dl class="claim-details"><div><dt>Wallet</dt><dd id="wallet-address">Not connected</dd></div><div><dt>Claim status</dt><dd id="eligibility">Connect to check</dd></div><div><dt>My GTK</dt><dd id="user-balance">—</dd></div></dl>
+            <button class="button button-primary" id="claim-button">Connect wallet to claim <span aria-hidden="true">↗</span></button>
+            <p class="gas-note">Gas is paid in Sepolia ETH</p>
+            <p class="feedback" id="status" role="status" aria-live="polite" hidden></p>
+            <a class="transaction-link" id="transaction-link" target="_blank" rel="noopener noreferrer" hidden>View transaction on Etherscan ↗</a>
+            <div class="connected-actions" id="connected-actions" hidden><button class="inline-button" id="refresh-button">Refresh status</button><button class="inline-button" id="disconnect-button">Disconnect</button></div>
+          </section>
+        </section>
+
+        <ol class="steps" aria-label="How to claim"><li><span class="step-number">01</span><div><strong>Connect wallet</strong><p>Use a wallet extension or in-wallet browser</p></div></li><li><span class="step-number">02</span><div><strong>Switch network</strong><p>Select Ethereum Sepolia</p></div></li><li><span class="step-number">03</span><div><strong>Claim GTK</strong><p>Review the transaction and confirm in your wallet</p></div></li></ol>
+
+        <section class="contract-strip" aria-label="Network"><span class="contract-network">CHAIN ID 11155111</span></section>
+      </main>
+      <footer><span>© Good Token</span></footer>
+    </div>
+
+    <dialog id="wallet-dialog" aria-labelledby="wallet-dialog-title"><div class="dialog-top"><h2 id="wallet-dialog-title">Connect your wallet</h2><button class="icon-button" data-close="wallet-dialog" aria-label="Close wallet selection">×</button></div><p class="dialog-description">Choose a browser wallet to connect to Ethereum Sepolia.</p><div id="wallet-list" class="wallet-list"></div><p id="wallet-help" class="dialog-description" hidden>No wallet detected. Open this page in a browser with a wallet extension, or use the built-in browser in your mobile wallet.</p><a id="wallet-install" class="text-link dark-link" href="https://metamask.io/download/" target="_blank" rel="noopener noreferrer" hidden>Install MetaMask ↗</a></dialog>
+
+    <dialog id="claim-dialog" aria-labelledby="claim-dialog-title"><div class="dialog-top"><h2 id="claim-dialog-title">Review your claim</h2><button class="icon-button" data-close="claim-dialog" aria-label="Close transaction details">×</button></div><p class="dialog-description">You will receive <strong id="confirm-allocation">100 GTK</strong>.</p><dl class="review-details"><div><dt>Network</dt><dd>Ethereum Sepolia</dd></div><div><dt>Action</dt><dd>claimAirdrop()</dd></div><div><dt>Cost</dt><dd>Sepolia ETH gas</dd></div></dl><p class="dialog-note">Check the network and destination contract in your wallet.</p><button id="confirm-claim" class="button button-primary">Confirm in wallet <span aria-hidden="true">↗</span></button></dialog>
+    <noscript><p class="noscript">Enable JavaScript to connect your wallet and claim the airdrop.</p></noscript>
+  </body>
+</html>

@@ -41,8 +41,8 @@ contract VulnerableTrader is IUniswapV3SwapCallback {
         _;
     }
 
-    /// @param token0_ Project-local mock token0.
-    /// @param token1_ Project-local mock token1.
+    /// @param token0_ First ERC-20; the Sepolia deployment uses Circle test USDC.
+    /// @param token1_ Second ERC-20; the Sepolia deployment uses Circle test EURC.
     /// @param maxCallbackPayment_ Maximum raw amount paid per positive token delta.
     constructor(IERC20 token0_, IERC20 token1_, uint256 maxCallbackPayment_) {
         if (address(token0_) == address(0) || address(token1_) == address(0)) {
@@ -73,7 +73,7 @@ contract VulnerableTrader is IUniswapV3SwapCallback {
         emit OwnershipTransferred(previousOwner, newOwner);
     }
 
-    /// @notice Deposits one of the two configured mock tokens into the trader.
+    /// @notice Deposits one of the two configured tokens into the trader.
     /// @param token Address of token0 or token1.
     /// @param amount Amount in raw token units.
     function deposit(address token, uint256 amount) external {
