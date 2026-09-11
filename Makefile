@@ -1,4 +1,4 @@
-.PHONY: install build test simulate deploy resume simulate-good-token deploy-good-token verify-good-token
+.PHONY: install build test simulate deploy resume simulate-good-token deploy-good-token verify-good-token simulate-transfer-and-fund transfer-and-fund resume-transfer-and-fund verify-transfer-and-fund
 
 install:
 	forge install --no-git --shallow OpenZeppelin/openzeppelin-contracts@v5.0.2 foundry-rs/forge-std@v1.9.7
@@ -27,3 +27,15 @@ deploy-good-token:
 
 verify-good-token:
 	node scripts/deploy-good-token.mjs verify
+
+simulate-transfer-and-fund:
+	node scripts/transfer-and-fund-trader.mjs simulate
+
+transfer-and-fund:
+	node scripts/transfer-and-fund-trader.mjs run
+
+resume-transfer-and-fund:
+	node scripts/transfer-and-fund-trader.mjs resume
+
+verify-transfer-and-fund:
+	node scripts/transfer-and-fund-trader.mjs verify

@@ -2,7 +2,7 @@
 
 合约源码位于 `contracts/trader.sol` 和 `contracts/token.sol`，部署脚本位于 `script/Deploy.s.sol`。
 
-空投前端位于 `frontend/`，提供连接钱包、领取 100 GTK 和课堂实验余额展示，使用说明见 [frontend/README.md](frontend/README.md)。
+空投前端位于 `frontend/`，提供连接钱包和领取 100 GTK，使用说明见 [frontend/README.md](frontend/README.md)。
 
 当前前端使用新部署的 **Good Token（GTK）**，并复用原有 Trader。新 token 的独立部署记录在 `deployments/sepolia-good-token.json`，原始部署记录仍保存在 `deployments/sepolia.json`。可通过 `make simulate-good-token` 模拟、`make deploy-good-token` 部署、`make verify-good-token` 重新核对已有部署。已存在广播记录时不会重复部署。
 
@@ -43,6 +43,36 @@ cast wallet import sepolia-demo --interactive
 ```
 
 删除 `.env` 中的 `DEPLOYER_PRIVATE_KEY`，设置 `FOUNDRY_ACCOUNT=sepolia-demo` 和该账户的公开 `DEPLOYER_ADDRESS`。无人值守运行还可设置 `KEYSTORE_PASSWORD_FILE`。私钥不通过脚本命令参数传入，`.env` 和广播缓存均已加入 `.gitignore`。
+
+## 转移 Trader owner 并充值
+
+`scripts/transfer-and-fund-trader.mjs` 自动读取已部署的 Trader，按顺序执行三笔 Sepolia 交易：当前 owner 调用 `transferOwner(newOwner)`，随后新 owner 直接向 Trader 各转入 **1 USDC 和 1 EURC**（每种 `1000000` 最小单位），无需 approve。
+
+在本地 `.env` 配置：
+
+```dotenv
+# 当前 Trader owner 的私钥，沿用原变量
+DEPLOYER_PRIVATE_KEY=
+# 接收 owner 权限、同时支付两种测试币的钱包
+NEW_OWNER_ADDRESS=
+NEW_OWNER_PRIVATE_KEY=
+# 可选；默认从 deployments/sepolia.json 读取
+# TRADER_ADDRESS=
+```
+
+这个脚本需要两个账户的本地私钥；只有地址无法替该账户转币。两个账户均需 Sepolia ETH 支付 gas，新 owner 还需至少 1 USDC 和 1 EURC。常规执行通过环境变量向 Foundry 提供私钥；恢复时临时生成加密 keystore 和仅当前用户可读的密码文件，执行结束后自动删除。原始私钥不放入命令参数或操作记录。
+
+```sh
+make simulate-transfer-and-fund  # 模拟全部操作，不发交易
+make transfer-and-fund           # 先模拟，再依次转移 owner、转 USDC、转 EURC
+make verify-transfer-and-fund    # 核对链上 owner 和三笔已确认交易
+```
+
+脚本检查 Sepolia 网络、Trader 币种、精度、当前 owner、新 owner 私钥与地址是否匹配，以及两种测试币余额。三笔交易并非原子操作：中途失败时，已经成功的 owner 转移或充值不会回滚。保留原来的两个签名账户和配置，执行 `make resume-transfer-and-fund` 从 Foundry 广播记录恢复；已有操作记录时会拒绝重新执行 `make transfer-and-fund`，避免重复充值。
+
+操作记录在 `deployments/sepolia-transfer-and-fund.json`，广播记录在 `broadcast/TransferAndFundTrader.s.sol/11155111/`。若广播尚未开始、只有 prepared 操作记录且没有广播记录，先确认没有已发送交易，再移除该 prepared 记录并重新运行。完成后如需开展另一轮演示，先归档这两处记录，并将 `DEPLOYER_PRIVATE_KEY` 更新为届时的当前 owner。脚本核验实际交易的发送者、接收者、calldata 和成功回执；Trader 中的余额仍可能因课堂 callback 被转走。
+
+此操作只转移 Trader 的 owner；Good Token 的 owner 不随之变化。
 
 ## 测试币和参数
 
