@@ -56,14 +56,14 @@ function keccak(bytes) {
 }
 
 function resumeWithWallets(args, record) {
-  // --resume skips run(), so explicitly provide both signers. Temporary V3
+  // --resume skips run(), so explicitly provide the local signer. Temporary V3
   // keystores keep raw keys out of argv and are deleted even if Forge fails.
   const directory = mkdtempSync(resolve(tmpdir(), 'trader-funding-wallets-'));
   try {
     const password = randomBytes(32).toString('hex');
     const passwordFile = resolve(directory, 'password');
     writeFileSync(passwordFile, password, { mode: 0o600 });
-    for (const [name, expected] of [['DEPLOYER_PRIVATE_KEY', record.oldOwner], ['NEW_OWNER_PRIVATE_KEY', record.newOwner]]) {
+    for (const [name, expected] of [['DEPLOYER_PRIVATE_KEY', record.sender]]) {
       const key = Buffer.from(process.env[name].slice(2), 'hex');
       const ecdh = createECDH('secp256k1');
       ecdh.setPrivateKey(key);
@@ -101,6 +101,7 @@ try {
     if (!existsSync(recordPath) || !existsSync(broadcastPath)) throw new Error('Both operation and broadcast records are required.');
     record = JSON.parse(readFileSync(recordPath, 'utf8'));
     equal(record.chainId, chainId, 'Recorded network');
+    if (record.formatVersion !== 2) throw new Error('Legacy two-signer record: use the original script revision to resume it; do not overwrite its records.');
     if (mode === 'resume' && record.status === 'complete') throw new Error('Already completed. Use verify.');
     for (const [name, value] of [['TRADER_ADDRESS', record.trader], ['NEW_OWNER_ADDRESS', record.newOwner]]) {
       if (process.env[name]) equal(process.env[name], value, name);
@@ -113,7 +114,7 @@ try {
       equal(deployment.chainId, chainId, 'Deployment network');
       trader = deployment.contracts.VulnerableTrader.address;
     }
-    record = { chainId, trader, newOwner: process.env.NEW_OWNER_ADDRESS, status: 'prepared' };
+    record = { formatVersion: 2, chainId, trader, newOwner: process.env.NEW_OWNER_ADDRESS, status: 'prepared' };
     process.env.TRADER_ADDRESS = trader;
   }
   if (!validAddress(record.trader) || !validAddress(record.newOwner)) throw new Error('Set valid TRADER_ADDRESS and NEW_OWNER_ADDRESS.');
@@ -121,17 +122,26 @@ try {
   equal(call(record.trader, 'token1()(address)'), eurc, 'Trader EURC');
 
   if (mode !== 'verify') {
-    for (const name of ['DEPLOYER_PRIVATE_KEY', 'NEW_OWNER_PRIVATE_KEY']) {
-      if (!process.env[name]) throw new Error(`Set ${name} in local .env. This script requires both signing keys.`);
+    for (const name of ['DEPLOYER_PRIVATE_KEY']) {
+      if (!process.env[name]) throw new Error(`Set ${name} in local .env. This script uses the local signing key.`);
       try { process.env[name] = normalizePrivateKey(process.env[name]); }
       catch { throw new Error(`${name} must be a valid signing key.`); }
+    }
+    const ecdh = createECDH('secp256k1');
+    ecdh.setPrivateKey(Buffer.from(process.env.DEPLOYER_PRIVATE_KEY.slice(2), 'hex'));
+    const sender = `0x${keccak(ecdh.getPublicKey().subarray(1)).slice(-40)}`;
+    if (mode === 'resume') equal(sender, record.sender, 'Recorded local signer');
+    else {
+      record.sender = sender;
+      record.oldOwner = call(record.trader, 'owner()(address)');
+      record.transferOwnership = lower(record.oldOwner) !== lower(record.newOwner);
+      if (record.transferOwnership) equal(record.oldOwner, sender, 'Current owner/local signer');
     }
     const args = ['script', 'script/TransferAndFundTrader.s.sol:TransferAndFundTrader', '--rpc-url', 'sepolia', '--disable-external-identification'];
     if (mode === 'run') {
       if (existsSync(recordPath) || existsSync(broadcastPath)) throw new Error('Operation records already exist. Use resume or verify to avoid duplicate transfers.');
-      // Simulate all three transactions successfully before creating an operation record or broadcasting.
+      // Simulate all requested transactions successfully before creating an operation record or broadcasting.
       run('forge', args, true);
-      record.oldOwner = call(record.trader, 'owner()(address)');
       save(record);
     }
     if (mode !== 'simulate') args.push('--broadcast', '--slow');
@@ -141,17 +151,18 @@ try {
   }
 
   if (mode === 'simulate') {
-    console.log('Simulation passed: transfer ownership, then send 1 USDC + 1 EURC from the new owner. No transactions broadcast.');
+    console.log(`Simulation passed: ${record.transferOwnership ? 'transfer ownership, then ' : 'owner already matches; '}send 1 USDC + 1 EURC from the local signer. No transactions broadcast.`);
   } else {
     const broadcast = JSON.parse(readFileSync(broadcastPath, 'utf8'));
     equal(broadcast.chain, chainId, 'Broadcast network');
-    if (broadcast.pending?.length || broadcast.transactions?.length !== 3) throw new Error('Expected three completed transactions. Use resume.');
+    const expectedCount = record.transferOwnership ? 3 : 2;
+    if (broadcast.pending?.length || broadcast.transactions?.length !== expectedCount) throw new Error(`Expected ${expectedCount} completed transactions. Inspect records or use resume.`);
     const ownershipData = run('cast', ['calldata', 'transferOwner(address)', record.newOwner]);
     const transferData = run('cast', ['calldata', 'transfer(address,uint256)', record.trader, '1000000']);
     const expected = [
-      [record.trader, record.oldOwner, ownershipData],
-      [usdc, record.newOwner, transferData],
-      [eurc, record.newOwner, transferData],
+      ...(record.transferOwnership ? [[record.trader, record.sender, ownershipData]] : []),
+      [usdc, record.sender, transferData],
+      [eurc, record.sender, transferData],
     ];
     record.transactions = broadcast.transactions.map((tx, index) => {
       const receipt = castJson(['receipt', tx.hash]);
@@ -168,7 +179,7 @@ try {
     equal(call(record.trader, 'owner()(address)'), record.newOwner, 'Final Trader owner');
     record.status = 'complete';
     save(record);
-    console.log(`Verified: Trader owner is ${record.newOwner}; new owner sent 1 USDC and 1 EURC to ${record.trader}.`);
+    console.log(`Verified: Trader owner is ${record.newOwner}; local signer ${record.sender} sent 1 USDC and 1 EURC to ${record.trader}.`);
     for (const tx of record.transactions) console.log(`https://sepolia.etherscan.io/tx/${tx.hash}`);
   }
 } catch (error) {

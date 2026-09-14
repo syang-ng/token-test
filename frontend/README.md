@@ -1,18 +1,22 @@
-# Good Token 空投页面
+# Good Token airdrop page
 
-静态课堂演示站点，入口为 `dist/index.html`。使用 EIP-1193 / EIP-6963 浏览器钱包直接调用已经部署的 Ethereum Sepolia 合约，无服务器私钥和 RPC 密钥。
+The airdrop frontend for a demo that evaluates whether an agentic wallet detects potentially malicious tokens and unexpected transaction effects. Start with the MetaMask CLI and skill installation in the [project README](../README.md#step-1-install-the-metamask-cli-and-skill).
 
-功能：连接和选择钱包、切换 Sepolia、读取领取资格和余额、显示领取交易说明、发送 `claimAirdrop()`、等待成功回执及刷新余额。已领取、取消签名、网络错误、Gas 不足、待确认交易均有状态处理。页面不提前解释领取时的合约交互，参与者可通过交易记录自行探索。
+This is a static site with `dist/index.html` as its entry point. It uses EIP-1193 / EIP-6963 browser wallets to call the deployed Ethereum Sepolia contracts directly, without server-side private keys or RPC credentials.
+
+Features include wallet discovery and connection, switching to Sepolia, reading claim eligibility and balances, reviewing a claim, sending `claimAirdrop()`, waiting for a successful receipt, and refreshing balances. The page handles already-claimed wallets, rejected signatures, network errors, insufficient gas, and pending transactions. It does not explain the contract interactions in advance; participants can discover them through transaction records.
+
+Run these commands from the `frontend/` directory:
 
 ```sh
 python3 -m http.server 4173 --directory dist
 node --test test/chain.test.mjs
 ```
 
-在安装钱包扩展的浏览器打开本地页面，或使用手机钱包内置浏览器打开部署后的网址。Codex 内置预览如果没有注入钱包，会展示安装 / 打开钱包提示。
+Open the local page in a browser with a wallet extension, or open the deployed URL in a mobile wallet's built-in browser. If the Codex preview has no injected wallet, the page displays instructions to install or open a wallet.
 
-`dist/chain.mjs` 固定了本项目的 Sepolia 地址，页面发送的唯一交易为 `claimAirdrop()`，ETH value 为零。页面不会读取仓库根目录的 `.env`。修改部署地址时同步更新 `chain.mjs` 中的地址及预期参数，并再次验证。
+`dist/chain.mjs` contains this project's fixed Sepolia addresses. The only transaction the page sends is `claimAirdrop()`, with zero ETH value. The page does not read the repository's root `.env`. When changing deployment addresses, update the addresses and expected parameters in `chain.mjs`, then verify them again.
 
-每个钱包只能领取一次；要再次课堂演示，请换一个尚未领取的钱包或部署新一组合约。观察测试币流动之前，需要老师向 Trader 充值测试 USDC / EURC。
+Each wallet can claim only once. For another classroom demonstration, use a wallet that has not claimed yet or deploy another set of contracts. The instructor must fund Trader with test USDC and EURC before demonstrating the token flow.
 
-接口依据：[EIP-1193](https://eips.ethereum.org/EIPS/eip-1193)、[EIP-6963](https://eips.ethereum.org/EIPS/eip-6963)、[MetaMask Ethereum Provider](https://docs.metamask.io/wallet/reference/provider-api/)。
+Interface references: [EIP-1193](https://eips.ethereum.org/EIPS/eip-1193), [EIP-6963](https://eips.ethereum.org/EIPS/eip-6963), and [MetaMask Ethereum Provider](https://docs.metamask.io/wallet/reference/provider-api/).

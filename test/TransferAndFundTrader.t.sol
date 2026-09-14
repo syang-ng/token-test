@@ -7,8 +7,8 @@ import {VulnerableTrader} from "../contracts/trader.sol";
 import {MockStablecoin} from "./Demo.t.sol";
 
 contract TransferAndFundHarness is TransferAndFundTrader {
-    function execute(address trader, address newOwner, uint256 ownerKey, uint256 newOwnerKey) external {
-        _transferAndFund(trader, newOwner, ownerKey, newOwnerKey);
+    function execute(address trader, address newOwner, uint256 ownerKey) external {
+        _transferAndFund(trader, newOwner, ownerKey);
     }
 }
 
@@ -35,26 +35,26 @@ contract TransferAndFundTraderTest is Test {
         vm.prank(oldOwner);
         trader = new VulnerableTrader(usdc, eurc, 1e6);
         vm.deal(oldOwner, 1 ether);
-        vm.deal(newOwner, 1 ether);
-        usdc.mint(newOwner, 3e6);
-        eurc.mint(newOwner, 2e6);
+        // The recipient requires no key, gas or stablecoin balance.
+        usdc.mint(oldOwner, 3e6);
+        eurc.mint(oldOwner, 2e6);
     }
 
     function execute() private {
-        script.execute(address(trader), newOwner, OWNER_KEY, NEW_OWNER_KEY);
+        script.execute(address(trader), newOwner, OWNER_KEY);
     }
 
-    function testTransfersOwnershipAndOneOfEachFromNewOwnerWithoutApproval() public {
+    function testLocalOwnerTransfersOwnershipAndFundsWithoutRecipientKey() public {
         execute();
         assertEq(trader.owner(), newOwner);
         assertEq(usdc.balanceOf(address(trader)), 1e6);
         assertEq(eurc.balanceOf(address(trader)), 1e6);
-        assertEq(usdc.balanceOf(newOwner), 2e6);
-        assertEq(eurc.balanceOf(newOwner), 1e6);
-        assertEq(usdc.balanceOf(oldOwner), 0);
-        assertEq(eurc.balanceOf(oldOwner), 0);
-        assertEq(usdc.allowance(newOwner, address(trader)), 0);
-        assertEq(eurc.allowance(newOwner, address(trader)), 0);
+        assertEq(usdc.balanceOf(newOwner), 0);
+        assertEq(eurc.balanceOf(newOwner), 0);
+        assertEq(usdc.balanceOf(oldOwner), 2e6);
+        assertEq(eurc.balanceOf(oldOwner), 1e6);
+        assertEq(usdc.allowance(oldOwner, address(trader)), 0);
+        assertEq(eurc.allowance(oldOwner, address(trader)), 0);
     }
 
     function testRejectsWrongNetwork() public {
@@ -63,38 +63,50 @@ contract TransferAndFundTraderTest is Test {
         execute();
     }
 
-    function testRejectsWrongNewOwnerKey() public {
-        vm.expectRevert("New owner key/address mismatch");
-        script.execute(address(trader), newOwner, OWNER_KEY, 0x9999);
-        assertEq(trader.owner(), oldOwner);
+    function testAlreadyAssignedOwnerOnlyFundsFromLocalSigner() public {
+        vm.prank(oldOwner);
+        trader.transferOwner(newOwner);
+        execute();
+        assertEq(trader.owner(), newOwner);
+        assertEq(usdc.balanceOf(address(trader)), 1e6);
+        assertEq(eurc.balanceOf(address(trader)), 1e6);
+        assertEq(usdc.balanceOf(newOwner), 0);
     }
 
-    function testRejectsWrongCurrentOwnerKey() public {
-        vm.expectRevert("Current owner key mismatch");
-        script.execute(address(trader), newOwner, 0x9999, NEW_OWNER_KEY);
-        assertEq(trader.owner(), oldOwner);
+    function testRejectsUnrelatedCurrentOwnerBeforeFunding() public {
+        vm.prank(oldOwner);
+        trader.transferOwner(address(0xBEEF));
+        vm.expectRevert("Local signer cannot transfer current ownership");
+        execute();
+        assertEq(usdc.balanceOf(address(trader)), 0);
+        assertEq(eurc.balanceOf(address(trader)), 0);
+    }
+
+    function testRejectsZeroRecipient() public {
+        vm.expectRevert("Invalid new owner");
+        script.execute(address(trader), address(0), OWNER_KEY);
     }
 
     function testChecksBothBalancesBeforeTransferringOwnership() public {
-        vm.prank(newOwner);
+        vm.prank(oldOwner);
         eurc.transfer(address(0xBEEF), 2e6);
-        vm.expectRevert("New owner needs 1 EURC");
+        vm.expectRevert("Local signer needs 1 EURC");
         execute();
         assertEq(trader.owner(), oldOwner);
         assertEq(usdc.balanceOf(address(trader)), 0);
     }
 
     function testRejectsInsufficientUsdc() public {
-        vm.prank(newOwner);
+        vm.prank(oldOwner);
         usdc.transfer(address(0xBEEF), 3e6);
-        vm.expectRevert("New owner needs 1 USDC");
+        vm.expectRevert("Local signer needs 1 USDC");
         execute();
         assertEq(trader.owner(), oldOwner);
     }
 
     function testRejectsMissingGasBeforeTransferringOwnership() public {
-        vm.deal(newOwner, 0);
-        vm.expectRevert("Both owners need Sepolia ETH for gas");
+        vm.deal(oldOwner, 0);
+        vm.expectRevert("Local signer needs Sepolia ETH for gas");
         execute();
         assertEq(trader.owner(), oldOwner);
     }
